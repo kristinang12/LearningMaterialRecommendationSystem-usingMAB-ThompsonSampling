@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Learning Material Recommendation</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-brand">
+            LMRS
+        </div>
+        <div class="sidebar">
+            <a href="/">Home</a>
+        </div>
+    </header>
+
+    <main class="cont">
+        <section class="sq">
+            <h1>Learning Material Recommendation System</h1>
+            <form id="searchForm" method="POST" action="/">
+                <label for="search_query">Search for Learning Materials:</label>
+                <br>
+                <input type="text" id="search_query" name="search_query" class="my-input" placeholder="search" aria-label="Search input">
+                <button type="submit">Search</button>
+            </form>
+        </section>
+        <section id="search" class="sr">
+            
+            {% if show_results_label %}
+            <h2>Search Result:</h2>
+            {% endif %}
+            {% if no_results_message %}
+            <p>{{ no_results_message }}</p>
+            {% endif %}
+            
+            <ul>
+                {% for lm_result in search_recommendation %}
+                <li><a href="/click_resultquery/{{ lm_result }}?clicked=true" aria-label="Search result">{{ lm_result }}</a></li>
+                {% endfor %}
+            </ul>
+        </section>
+        
+        <section class="rl" id="recommendations">
+            <h2>Recommended Learning Materials:</h2>
+            <ul>
+                {% for lm_title in recommended_lm_titles %}
+                <li><a href="/click_lm/{{ lm_title }}?clicked=true" aria-label="Recommended learning material" class="recommended-lm">{{ lm_title }}</a></li>
+                {% endfor %}
+            </ul>
+        </section>
+        
+    </main>
+    <script>
+        // Check if the user is navigating back to the index page
+        window.addEventListener('popstate', function(event) {
+            // Clear the session storage
+            sessionStorage.clear();
+
+            // Reload the page to reset the session
+            window.location.reload();
+        });
+        // Reset the session when the user navigates back to the index page
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || window.performance && window.performance.navigation.type == 2) {
+                // Page is fetched from cache, reset the session
+                fetch('/reset_session', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }).then(response => {
+                    // Handle the response if needed
+                }).catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        });
+    </script>
+    
+</body>
+</html>

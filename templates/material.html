@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Learning Material Description</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+
+        // Navigate back to the home page and reset the session
+        function navigateBackAndReset() {
+            // Reset the session for the current learning material
+            fetch(`/reset_session`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            }).then(response => {
+                // Handle the response if needed
+                // Navigate back to the home page
+                window.location.href = '/';
+            }).catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Reset the session if the user navigates away from this page
+        window.addEventListener('unload', function() {
+            navigateBackAndReset();
+        });
+    </script>
+
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-brand">
+            LMRS
+        </div>
+        <div class="sidebar">
+            <a href="/">Home</a>
+        </div>
+    </div>
+
+    <div class="cont">
+        <h1>Learning Material Description</h1>
+        <p id="description">{{ description }}</p>
+
+        <button onclick="navigateBackAndReset()">Back to Home</button>
+    </div>
+</body>
+</html>
