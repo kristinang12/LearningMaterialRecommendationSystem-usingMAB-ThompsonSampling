@@ -77,7 +77,7 @@ def rewardCalculation(arm_id_r, arm_id_s=None, is_search_query=False):
 
     conn.commit()
     
-def observereward(arm_id_s):
+def observereward(arm_id_s, session_key):
     cur.execute("SELECT id, arm_id_s, alpha_s, beta_s, meanreward_s, arm_id_r, alpha_r, beta_r, meanreward_r FROM rewardcalculationts ORDER BY id DESC")
     rows = cur.fetchall()
 
@@ -101,7 +101,7 @@ def observereward(arm_id_s):
         conn.commit()
 
 def observeregret(arm_id):
-    cur.execute("SELECT id, arm_id_s, selectedarm_s, regret_s, arm_id_r, selectedarm_r, regret_r, total_regret FROM regretcalculationts ORDER BY id DESC")
+    cur.execute("SELECT id, arm_id_s, selectedarm_s, regret_s, arm_id_r, selectedarm_r, regret_r, total_regret FROM regretcalculationts ORDER BY id DESC", arm_id)
     rows = cur.fetchall()
     
     cur.execute("SELECT average_reward FROM armsrewardts ORDER BY average_reward DESC LIMIT 1")
@@ -195,6 +195,8 @@ def index():
     recommended_lm_titles = []
     search_recommendation = []
     
+    session_key = session.get('key')
+    
     arm_id_r = select_arm()
     arm_id_s = None  # Initialize arm_id_s to None
     
@@ -241,7 +243,7 @@ def index():
                     no_results_message = "No search results found. Try recommended learning material."
                     
     if arm_id_r and arm_id_s:
-        rewardCalculation(arm_id_r, arm_id_s, is_search_query=False)
+        rewardCalculation(arm_id_r, arm_id_s, )
     else:
         rewardCalculation(arm_id_r, is_search_query=False)
         
@@ -257,6 +259,7 @@ def index():
 
 @app.route('/click_lm/<lm_title>', methods=['GET'])
 def click_lm(lm_title):
+    session_key = session.get('key')  # Assuming session key is stored as 'key' in the session
     # Retrieve the description of the clicked learning material
     cur.execute("SELECT description FROM arms WHERE lm_title = %s", (lm_title,))
     row = cur.fetchone()
@@ -275,8 +278,8 @@ def click_lm(lm_title):
     arm_id_r = row[0] if row else None
     if arm_id_r is not None:
         updateReward(arm_id_r)
-        observereward(arm_id_r)
-        observeregret(arm_id_r)
+        observereward(arm_id_r, session_key)
+        observeregret(arm_id_r, session_key)
         
     session[update_count_key] = update_count + 2
 
@@ -285,6 +288,7 @@ def click_lm(lm_title):
 
 @app.route('/click_resultquery/<lm_result>', methods=['GET'])
 def click_searchquery(lm_result):
+    session_key = session.get('key')  # Assuming session key is stored as 'key' in the session
     # Retrieve the description of the clicked learning material
     cur.execute("SELECT description FROM arms WHERE lm_title = %s", (lm_result,))
     row = cur.fetchone()
@@ -303,8 +307,8 @@ def click_searchquery(lm_result):
     arm_id_s = row[0] if row else None
     if arm_id_s is not None:
         updateReward(arm_id_s)
-        observereward(arm_id_s)
-        observeregret(arm_id_s)
+        observereward(arm_id_s, session_key)
+        observeregret(arm_id_s, session_key)
         
     session[update_count_key] = update_count + 2
 
@@ -315,7 +319,6 @@ def click_searchquery(lm_result):
 def reset_session():
     session.clear()
     return '', 204
-
 
 # In your click_resultquery function, set the session variable when the user clicks on a learning material
 @app.route('/click_resultquery/<lm_result>', methods=['GET'])
