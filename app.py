@@ -170,7 +170,7 @@ def select_arm(search_query=None):
     # If there is no search query or no suitable arms found for the search query, fall back to Thompson Sampling
     if not sampled_probs:
         for arm_id in range(1, num_arms + 1):
-            cur.execute("SELECT alpha, beta FROM armsreward WHERE arm_id = %s", (arm_id,))
+            cur.execute("SELECT alpha, beta FROM armsrewardts WHERE arm_id = %s", (arm_id,))
             row = cur.fetchone()
 
             if row is not None:
