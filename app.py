@@ -13,43 +13,19 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 conn = psycopg2.connect(DATABASE_URL, sslmode='prefer')
 cur = conn.cursor()
 
-#postgres://lmrecommendationsystem_db_user:sg05UcW4YQS53HpmfmTeamDkqtXM8aIF@dpg-co95ksi0si5c7396oqu0-a/lmrecommendationsystem_db
-#postgres://lmrecommendationsystem_db_user:sg05UcW4YQS53HpmfmTeamDkqtXM8aIF@dpg-co95ksi0si5c7396oqu0-a.ohio-postgres.render.com/lmrecommendationsystem_db
-#sg05UcW4YQS53HpmfmTeamDkqtXM8aIF
-#Host name/address: dpg-co95ksi0si5c7396oqu0-a.ohio-postgres.render.com
-#Port: 5432
-#Maintenance database: lmrecommendationsystem_db
-#Username: lmrecommendationsystem_db_user
-#Password: sg05UcW4YQS53HpmfmTeamDkqtXM8aIF
-
- 
-def regretCalculation(arm_id_r, session_key, arm_id_s=None):
+def regretCalculation(optimal, arm_id_r, meanreward_r, session_key, meanreward_s=None, arm_id_s=None):
+    if arm_id_s is not None:
+        regret_s = optimal - meanreward_s
+        regret_r = optimal - meanreward_r
+        total_regret = (regret_s + regret_r) / 2
+        cur.execute("INSERT INTO regretcalculationts (arm_id_s,optimalarm, selectedarm_s, regret_s, arm_id_r, selectedarm_r, regret_r, total_regret, session_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", (arm_id_s, optimal, meanreward_s, regret_s, arm_id_r, meanreward_r, regret_r, total_regret, session_key))
+    else:
+        regret_r = optimal - meanreward_r
+        total_regret = regret_r
+        cur.execute("INSERT INTO regretcalculationts (arm_id_r,optimalarm, selectedarm_r, regret_r, total_regret, session_key) VALUES (%s, %s, %s, %s, %s, %s)", (arm_id_r,optimal,  meanreward_r, regret_r, total_regret, session_key))
     
-    cur.execute("SELECT alpha, beta, average_reward FROM armsrewardts WHERE arm_id = %s", (arm_id_r,))
-    row_r = cur.fetchone()
-    cur.execute("SELECT average_reward FROM armsrewardts ORDER BY average_reward DESC LIMIT 1")
-    optimal_arm = cur.fetchone()[0]
-    if row_r is not None:
-        alpha_r, beta_r, meanreward_r = row_r
-
-        if arm_id_s is not None:
-            cur.execute("SELECT alpha, beta, average_reward FROM armsrewardts WHERE arm_id = %s", (arm_id_s,))
-            row_s = cur.fetchone()
-
-            if row_s is not None:
-                alpha_s, beta_s, meanreward_s = row_s
-                regret_s = optimal_arm - meanreward_s
-                regret_r = optimal_arm - meanreward_r
-                total_regret = (regret_s + regret_r)/2
-                cur.execute("INSERT INTO regretcalculationts (arm_id_s, optimalarm, selectedarm_s, regret_s, arm_id_r, selectedarm_r, regret_r, total_regret, session_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", (arm_id_s, optimal_arm, meanreward_s, regret_s, arm_id_r, meanreward_r, regret_r, total_regret, session_key))
-        else:
-            regret_r = optimal_arm - meanreward_r
-            total_regret = regret_r
-            cur.execute("INSERT INTO regretcalculationts (optimalarm, arm_id_r, selectedarm_r, regret_r, total_regret, session_key) VALUES (%s, %s, %s, %s, %s, %s)", (optimal_arm, arm_id_r, meanreward_r, regret_r, total_regret, session_key))
-
     conn.commit()
 
-    
 def rewardCalculation(arm_id_r, session_key, arm_id_s=None):
     cur.execute("SELECT alpha, beta, average_reward FROM armsrewardts WHERE arm_id = %s", (arm_id_r,))
     row_r = cur.fetchone()
@@ -64,17 +40,30 @@ def rewardCalculation(arm_id_r, session_key, arm_id_s=None):
             
             if row_s is not None:
                 alpha_s, beta_s, meanreward_s = row_s
-                meanreward_s = alpha_s / (alpha_s +beta_s)
-                total_meanreward = (meanreward_s + meanreward_r)/2
-                cur.execute("INSERT INTO rewardcalculationts (arm_id_s, alpha_s, beta_s, meanreward_s, arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (arm_id_s,alpha_s, beta_s, meanreward_s, arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key))
-        else:
+                meanreward_s = alpha_s / (alpha_s + beta_s)
+                total_meanreward = (meanreward_s + meanreward_r) / 2
+                cur.execute("INSERT INTO rewardcalculationts (arm_id_s, alpha_s, beta_s, meanreward_s, arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (arm_id_s, alpha_s, beta_s, meanreward_s, arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key))
+                
+                cur.execute("SELECT average_reward FROM armsrewardts ORDER BY average_reward DESC LIMIT 1")
+                whatOptimal = cur.fetchone()
+                
+                if whatOptimal: 
+                    optimal = whatOptimal[0]
+                    regretCalculation(optimal, arm_id_r, meanreward_r, session_key, meanreward_s, arm_id_s)
+                    
+        else:   
             total_meanreward = meanreward_r
-            cur.execute("INSERT INTO rewardcalculationts (arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key) VALUES (%s, %s, %s, %s, %s,%s)", (arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key))
+            cur.execute("INSERT INTO rewardcalculationts (arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key) VALUES (%s, %s, %s, %s, %s, %s)", (arm_id_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key))
+            
+            cur.execute("SELECT average_reward FROM armsrewardts ORDER BY average_reward DESC LIMIT 1")
+            optimal = cur.fetchone()[0]
+            
+            regretCalculation(optimal, arm_id_r, meanreward_r, session_key, meanreward_s, arm_id_s)
 
     conn.commit()
-    
+
 def observereward(arm_id, session_key):
-    cur.execute("SELECT id, arm_id_s, alpha_s, beta_s, meanreward_s, arm_id_r, alpha_r, beta_r, meanreward_r FROM rewardcalculationts WHERE session_key = %s ORDER BY id DESC", (session_key,))
+    cur.execute("SELECT id, arm_id_s, alpha_s, beta_s, meanreward_s, arm_id_r, alpha_r, beta_r, meanreward_r FROM rewardcalculationts WHERE session_key <= %s ORDER BY id DESC", (session_key,))
     rows = cur.fetchall()
 
     if rows:
@@ -85,40 +74,53 @@ def observereward(arm_id, session_key):
             meanreward_s = alpha_s / (alpha_s+beta_s)
             total_meanreward = (meanreward_r + meanreward_s)/2
             reward_s = 1
-            cur.execute("UPDATE rewardcalculationts SET reward_s = %s, alpha_s = %s, beta_s = %s, meanreward_s = %s, total_meanreward =%s WHERE id = %s AND session_key = %s", (reward_s, alpha_s, beta_s, meanreward_s, total_meanreward, id,session_key))
+            cur.execute("UPDATE rewardcalculationts SET reward_s = %s, alpha_s = %s, beta_s = %s, meanreward_s = %s, total_meanreward =%s WHERE session_key = %s", (reward_s, alpha_s, beta_s, meanreward_s, total_meanreward, session_key))
+            
+            cur.execute("SELECT meanreward_r, meanreward_s FROM rewardcalculationts WHERE session_key <= %s ORDER BY id DESC", (session_key,))
+            whatOptimal = cur.fetchone()
+
+            if whatOptimal: 
+                meanreward_r_main, meanreward_s_main = whatOptimal
+                if meanreward_r_main > meanreward_s_main:
+                    optimal = meanreward_s
+                    regret_s = optimal - meanreward_s
+                    regret_r = optimal - meanreward_r
+                    total_regret = (regret_s + regret_r)/2
+                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, regret_s=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, regret_s, total_regret, session_key))
+
+                else:
+                    optimal = meanreward_s
+                    regret_s = optimal - meanreward_s
+                    regret_r = optimal - meanreward_r
+                    total_regret = (regret_s + regret_r)/2
+                    cur.execute("UPDATE regretcalculationts SET selectedarm_s=%s, regret_s=%s, total_regret=%s WHERE session_key=%s", ( meanreward_s, regret_s, total_regret, session_key))
+
         else:
             alpha_r += 1
             beta_r -= 1
             meanreward_r = alpha_r / (alpha_r +beta_r)
             total_meanreward = meanreward_r
             reward_r = 1
-            cur.execute("UPDATE rewardcalculationts SET reward_r = %s, alpha_r = %s, beta_r = %s, meanreward_r = %s, total_meanreward =%s  WHERE id= %s AND session_key = %s", (reward_r, alpha_r, beta_r, meanreward_r, total_meanreward,id, session_key))
+            cur.execute("UPDATE rewardcalculationts SET reward_r = %s, alpha_r = %s, beta_r = %s, meanreward_r = %s, total_meanreward =%s  WHERE session_key = %s", (reward_r, alpha_r, beta_r, meanreward_r, total_meanreward, session_key))
+            
+            cur.execute("SELECT meanreward_r, meanreward_s FROM rewardcalculationts WHERE session_key <= %s ORDER BY id DESC", (session_key,))
+            whatOptimal = cur.fetchone()
 
-        conn.commit()
+            if whatOptimal: 
+                meanreward_r_main, meanreward_s_main = whatOptimal
+                if meanreward_r_main > meanreward_s_main:
+                    optimal = meanreward_r_main
+                    regret_r = optimal - meanreward_r
+                    total_regret = regret_r
+                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, meanreward_r, regret_r, total_regret, session_key))
 
-def observeregret(arm_id, session_key):
-    cur.execute("SELECT id, arm_id_s, selectedarm_s, regret_s, arm_id_r, selectedarm_r, regret_r, total_regret FROM regretcalculationts WHERE session_key = %s ORDER BY id DESC", (session_key,))
-    rows = cur.fetchall()
-    
-    cur.execute("SELECT average_reward FROM armsrewardts ORDER BY average_reward DESC LIMIT 1")
-    optimal_arm = cur.fetchone()[0]
+                else:
+                    
+                    regret_r = optimal - meanreward_r
+                    total_regret = regret_r
+                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, meanreward_r, regret_r, total_regret, session_key))
 
-    if rows:
-        id, arm_id_search, selectedarm_s, regret_s, arm_id_r, selectedarm_r, regret_r, total_regret = rows[0]  # Get the first row
-        
-        if arm_id == arm_id_search:
-            cur.execute("SELECT average_reward FROM armsrewardts WHERE arm_id = %s", (arm_id,))
-            selectedarm_reward_s = cur.fetchone()[0]
-            regret_s = optimal_arm - selectedarm_reward_s
-            total_regret = (regret_s + regret_r) / 2
-            cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, regret_s=%s, total_regret=%s WHERE id=%s", (optimal_arm, selectedarm_reward_s, regret_s, total_regret, id))
-        else:
-            cur.execute("SELECT average_reward FROM armsrewardts WHERE arm_id = %s", (arm_id,))
-            selectedarm_reward_r = cur.fetchone()[0]
 
-            regret_r = optimal_arm - selectedarm_reward_r
-            total_regret = regret_r
-            cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE id=%s", (optimal_arm, selectedarm_reward_r, regret_r, total_regret, id))
 
         conn.commit()
         
@@ -245,11 +247,6 @@ def index():
         rewardCalculation(arm_id_r, session_key,  arm_id_s)
     else:
         rewardCalculation(arm_id_r, session_key)
-        
-    if arm_id_r and arm_id_s:
-        regretCalculation(arm_id_r, session_key,  arm_id_s)
-    else:
-        regretCalculation(arm_id_r, session_key)
  
     return render_template('index.html', no_results_message=no_results_message,
                            show_results_label=show_results_label, recommended_lm_titles=recommended_lm_titles,
@@ -278,7 +275,6 @@ def click_lm(lm_title):
     if arm_id_r is not None:
         updateReward(arm_id_r)
         observereward(arm_id_r, session_key)
-        observeregret(arm_id_r, session_key)
         
     session[update_count_key] = update_count + 2
 
@@ -307,7 +303,6 @@ def click_searchquery(lm_result):
     if arm_id_s is not None:
         updateReward(arm_id_s)
         observereward(arm_id_s, session_key)
-        observeregret(arm_id_s, session_key)
         
     session[update_count_key] = update_count + 2
 
