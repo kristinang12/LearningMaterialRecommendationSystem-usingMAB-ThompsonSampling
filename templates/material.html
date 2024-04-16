@@ -4,37 +4,33 @@
     <title>Learning Material Description</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
     <script>
-        <script>
-            
-            // Reset the session if the user navigates away from this page
-            window.addEventListener('unload', function() {
-                navigateBackAndReset();
+        // Prevent the page from being reloaded
+        window.addEventListener('beforeunload', function(e) {
+            e.preventDefault();
+        });
+
+        // Navigate back to the home page and reset the session
+        function navigateBackAndReset() {
+            // Reset the session for the current learning material
+            fetch(`/reset_session`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            }).then(response => {
+                // Handle the response if needed
+                // Navigate back to the home page
+                window.location.href = '/';
+            }).catch(error => {
+                console.error('Error:', error);
             });
-            // Check if the user is navigating back to the index page
-            window.addEventListener('popstate', function(event) {
-                // Clear the session storage
-                sessionStorage.clear();
-    
-                // Reload the page to reset the session
-                window.location.reload();
-            });
-            // Reset the session when the user navigates back to the index page
-            window.addEventListener('pageshow', function(event) {
-                if (event.persisted || window.performance && window.performance.navigation.type == 2) {
-                    // Page is fetched from cache, reset the session
-                    fetch('/reset_session', {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }).then(response => {
-                        // Handle the response if needed
-                    }).catch(error => {
-                        console.error('Error:', error);
-                    });
-                }
-            });
-        </script>
+        }
+
+        // Reset the session if the user navigates away from this page
+        window.addEventListener('unload', function() {
+            navigateBackAndReset();
+        });
+    </script>
 
 </head>
 <body>
