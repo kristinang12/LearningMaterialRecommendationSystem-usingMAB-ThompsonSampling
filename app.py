@@ -13,6 +13,14 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 conn = psycopg2.connect(DATABASE_URL, sslmode='prefer')
 
 cur = conn.cursor()
+#postgres://lmrecommendationsystem_db_user:sg05UcW4YQS53HpmfmTeamDkqtXM8aIF@dpg-co95ksi0si5c7396oqu0-a/lmrecommendationsystem_db
+#postgres://lmrecommendationsystem_db_user:sg05UcW4YQS53HpmfmTeamDkqtXM8aIF@dpg-co95ksi0si5c7396oqu0-a.ohio-postgres.render.com/lmrecommendationsystem_db
+#sg05UcW4YQS53HpmfmTeamDkqtXM8aIF
+#Host name/address: dpg-co95ksi0si5c7396oqu0-a.ohio-postgres.render.com
+#Port: 5432
+#Maintenance database: lmrecommendationsystem_db
+#Username: lmrecommendationsystem_db_user
+#Password: sg05UcW4YQS53HpmfmTeamDkqtXM8aIF
 
 def generate_unique_session_key():
     return str(uuid.uuid4())
@@ -204,7 +212,7 @@ def index():
     arm_id_s = None  # Initialize arm_id_s to None
     
     # Retrieve the learning material titles for the selected arm
-    cur.execute("SELECT lm_title FROM arms10 WHERE arm_id = %s", (arm_id_r,))
+    cur.execute("SELECT lm_title FROM arms WHERE arm_id = %s", (arm_id_r,))
     rows = cur.fetchall()
     arm_recommendations = [row[0] for row in rows] if cur.rowcount > 0 else []
     recommended_lm_titles.extend(arm_recommendations)
@@ -219,7 +227,7 @@ def index():
         if search_query.strip():
             arm_id_s = select_arm(search_query)
             # Retrieve the learning material titles for the selected arm
-            cur.execute("SELECT lm_title FROM arms WHERE arm_id = %s", (arm_id_s,))
+            cur.execute("SELECT lm_title FROM arms10 WHERE arm_id = %s", (arm_id_s,))
             rows = cur.fetchall()
             
             if rows:
