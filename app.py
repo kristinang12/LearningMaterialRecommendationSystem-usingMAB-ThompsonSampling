@@ -212,7 +212,7 @@ def index():
     arm_id_s = None  # Initialize arm_id_s to None
     
     # Retrieve the learning material titles for the selected arm
-    cur.execute("SELECT lm_title FROM arms WHERE arm_id = %s", (arm_id_r,))
+    cur.execute("SELECT lm_title FROM arms10 WHERE arm_id = %s", (arm_id_r,))
     rows = cur.fetchall()
     arm_recommendations = [row[0] for row in rows] if cur.rowcount > 0 else []
     recommended_lm_titles.extend(arm_recommendations)
@@ -232,12 +232,12 @@ def index():
             
             if rows:
                 # Check if the selected arm matches the search result
-                cur.execute("SELECT arm_id FROM armsreward WHERE lower(lm_title) LIKE lower(%s) ORDER BY average_reward DESC LIMIT 1",
+                cur.execute("SELECT arm_id FROM armsrewardts WHERE lower(lm_title) LIKE lower(%s) ORDER BY average_reward DESC LIMIT 1",
                             ('%{}%'.format(search_query),))
                 search_id = cur.fetchone()[0] if cur.rowcount > 0 else None
 
                 if arm_id_s == search_id:
-                    cur.execute("SELECT lm_title FROM armsreward WHERE arm_id = %s", (arm_id_s,))
+                    cur.execute("SELECT lm_title FROM armsrewardts WHERE arm_id = %s", (arm_id_s,))
                     rows = cur.fetchall()
                     search_results = [row[0] for row in rows] if cur.rowcount > 0 else []
                     
@@ -267,7 +267,7 @@ def index():
 def click_lm(lm_title):
     session_key = session.get('key')
     # Retrieve the description of the clicked learning material
-    cur.execute("SELECT description FROM arms WHERE lm_title = %s", (lm_title,))
+    cur.execute("SELECT description FROM arms10 WHERE lm_title = %s", (lm_title,))
     row = cur.fetchone()
     description = row[0] if row else "Description not found"
 
@@ -295,7 +295,7 @@ def click_lm(lm_title):
 def click_searchquery(lm_result):
     session_key = session.get('key')
     # Retrieve the description of the clicked learning material
-    cur.execute("SELECT description FROM arms WHERE lm_title = %s", (lm_result,))
+    cur.execute("SELECT description FROM arms10 WHERE lm_title = %s", (lm_result,))
     row = cur.fetchone()
     description = row[0] if row else "Description not found"
 
