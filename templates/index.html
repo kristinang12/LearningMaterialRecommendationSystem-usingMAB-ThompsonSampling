@@ -51,7 +51,11 @@
         
     </main>
     <script>
-
+        
+        // Reset the session if the user navigates away from this page
+        window.addEventListener('unload', function() {
+            navigateBackAndReset();
+        });
         // Check if the user is navigating back to the index page
         window.addEventListener('popstate', function(event) {
             // Clear the session storage

@@ -22,6 +22,7 @@ cur = conn.cursor()
 #Username: lmrecommendationsystem_db_user
 #Password: sg05UcW4YQS53HpmfmTeamDkqtXM8aIF
 
+
 def generate_unique_session_key():
     return str(uuid.uuid4())
 
@@ -94,19 +95,20 @@ def observereward(arm_id, session_key):
             if whatOptimal: 
                 meanreward_r_main, meanreward_s_main = whatOptimal
                 if meanreward_r_main > meanreward_s_main:
-                    optimal = meanreward_s
+                    optimal = meanreward_r_main
                     regret_s = optimal - meanreward_s
                     regret_r = optimal - meanreward_r
-                    total_regret = (regret_s + regret_r)/2
-                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, regret_s=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, regret_s, total_regret, session_key))
+                    total_regret = (regret_r + regret_s)/2
+                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, regret_s = %s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, regret_s, meanreward_r, regret_r, total_regret, session_key))
 
                 else:
-                    optimal = meanreward_s
+                    optimal = meanreward_s_main
                     regret_s = optimal - meanreward_s
                     regret_r = optimal - meanreward_r
-                    total_regret = (regret_s + regret_r)/2
-                    cur.execute("UPDATE regretcalculationts SET selectedarm_s=%s, regret_s=%s, total_regret=%s WHERE session_key=%s", ( meanreward_s, regret_s, total_regret, session_key))
+                    total_regret = (regret_r + regret_s)/2
+                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, regret_s = %s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, regret_s, meanreward_r, regret_r, total_regret, session_key))
 
+            
         else:
             alpha_r += 1
             beta_r -= 1
@@ -124,19 +126,14 @@ def observereward(arm_id, session_key):
                     optimal = meanreward_r_main
                     regret_r = optimal - meanreward_r
                     total_regret = regret_r
-                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, meanreward_r, regret_r, total_regret, session_key))
+                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s,selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_r, regret_r, total_regret, session_key))
 
                 else:
-                    
                     regret_r = optimal - meanreward_r
                     total_regret = regret_r
-                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_s=%s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_s, meanreward_r, regret_r, total_regret, session_key))
-
-
-
+                    cur.execute("UPDATE regretcalculationts SET optimalarm=%s, selectedarm_r=%s, regret_r=%s, total_regret=%s WHERE session_key=%s", (optimal, meanreward_r, regret_r, total_regret, session_key))
         conn.commit()
-        
-# Update reward
+    
 def updateReward(arm_id):
     cur.execute("SELECT alpha, beta, average_reward FROM armsrewardts WHERE arm_id = %s", (arm_id,))
     row = cur.fetchone()
@@ -165,20 +162,10 @@ def updateArmSelection(arm_id):
         
     conn.commit()
 
-def select_arm(search_query=None):
+def select_arm():
     num_arms = 10
     sampled_probs = []
 
-    # If there is a search query, prioritize arm selection based on the search query
-    if search_query:
-        cur.execute("SELECT arm_id, lm_title FROM armsrewardts WHERE lower(lm_title) LIKE lower(%s) ORDER BY average_reward DESC LIMIT 1",
-                    ('%{}%'.format(search_query),))
-        row = cur.fetchone()
-
-        if row:
-            arm_id, lm_title = row  # Unpack the row into arm_id and lm_title
-            return arm_id
-        
     # If there is no search query or no suitable arms found for the search query, fall back to Thompson Sampling
     if not sampled_probs:
         for arm_id in range(1, num_arms + 1):
@@ -197,7 +184,6 @@ def select_arm(search_query=None):
 
     # If no arm is selected, return a default recommendation
     return 1  # Default recommendation arm_id
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     no_results_message = ""
@@ -209,8 +195,7 @@ def index():
     session_key = session.get('key')
     
     arm_id_r = select_arm()
-    arm_id_s = None  # Initialize arm_id_s to None
-    
+    arm_id_s = None
     # Retrieve the learning material titles for the selected arm
     cur.execute("SELECT lm_title FROM arms10 WHERE arm_id = %s", (arm_id_r,))
     rows = cur.fetchall()
@@ -219,49 +204,42 @@ def index():
 
     if arm_id_r:
         updateArmSelection(arm_id_r)
-        
+    
     if request.method == 'POST':
         search_query = request.form.get('search_query', '')  # Use get() to avoid KeyError
 
         # Check if the search query is not empty
         if search_query.strip():
-            arm_id_s = select_arm(search_query)
-            # Retrieve the learning material titles for the selected arm
-            cur.execute("SELECT lm_title FROM arms10 WHERE arm_id = %s", (arm_id_s,))
-            rows = cur.fetchall()
-            
-            if rows:
-                # Check if the selected arm matches the search result
-                cur.execute("SELECT arm_id FROM armsrewardts WHERE lower(lm_title) LIKE lower(%s) ORDER BY average_reward DESC LIMIT 1",
-                            ('%{}%'.format(search_query),))
-                search_id = cur.fetchone()[0] if cur.rowcount > 0 else None
+            # Check if the selected arm matches the search result
+            cur.execute("SELECT arm_id FROM armsrewardts WHERE lower(lm_title) LIKE lower(%s) ORDER BY average_reward DESC LIMIT 1",
+                        ('%{}%'.format(search_query),))
+            arm_id_s = cur.fetchone()[0] if cur.rowcount > 0 else None
 
-                if arm_id_s == search_id:
-                    cur.execute("SELECT lm_title FROM armsrewardts WHERE arm_id = %s", (arm_id_s,))
-                    rows = cur.fetchall()
-                    search_results = [row[0] for row in rows] if cur.rowcount > 0 else []
-                    
-                    if arm_id_s:
-                        updateArmSelection(arm_id_s)
-                        
-                    if not search_results:
-                        no_results_message = "No search results found. Try recommended learning material."
-                    else:
-                        show_results_label = True
-
-                    search_recommendation.extend(search_results)
-                else:
+            if arm_id_s:
+                cur.execute("SELECT lm_title FROM armsrewardts WHERE arm_id = %s", (arm_id_s,))
+                rows = cur.fetchall()
+                search_results = [row[0] for row in rows] if cur.rowcount > 0 else []
+                
+                updateArmSelection(arm_id_s)
+                
+                if not search_results:
                     no_results_message = "No search results found. Try recommended learning material."
-                    
+                else:
+                    show_results_label = True
+
+                search_recommendation.extend(search_results)
+            else:
+                no_results_message = "No search results found. Try recommended learning material."
+                
+    # Call rewardCalculation outside the if block to ensure it's always called
     if arm_id_r and arm_id_s:
-        rewardCalculation(arm_id_r, session_key,  arm_id_s)
+        rewardCalculation(arm_id_r, session_key, arm_id_s)
     else:
         rewardCalculation(arm_id_r, session_key)
  
     return render_template('index.html', no_results_message=no_results_message,
                            show_results_label=show_results_label, recommended_lm_titles=recommended_lm_titles,
                            search_recommendation=search_recommendation, session_key=session_key)
-
 
 @app.route('/click_lm/<lm_title>', methods=['GET'])
 def click_lm(lm_title):
