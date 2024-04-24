@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-app.secret_key = 'keyni'
+app.secret_key = 'TSkey'
 
 # Get the database URL from an environment variable
 DATABASE_URL = os.environ.get('DATABASE_URL')
