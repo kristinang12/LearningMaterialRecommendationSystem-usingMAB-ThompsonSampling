@@ -23,6 +23,7 @@ cur = conn.cursor()
 #Username: lmrecommendationsystem_db_user
 #Password: sg05UcW4YQS53HpmfmTeamDkqtXM8aIF
 
+
 def generate_unique_session_key():
     return str(uuid.uuid4())
 
